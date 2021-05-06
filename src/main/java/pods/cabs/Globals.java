@@ -7,7 +7,13 @@ import java.util.HashMap;
 
 public class Globals {
 
-    HashMap<String, ActorRef<Cab.CabDetails>> cabs;
-    HashMap<String, ActorRef<Wallet.WalletDetails>> wallets;
-    ArrayList<ActorRef<RideService.RideDetails>> rideService;
+    public static HashMap<String, ActorRef<Cab.CabCommands>> cabs;
+    public static HashMap<String, ActorRef<Wallet.WalletCommands>> wallets;
+    public static ArrayList<ActorRef<RideService.RideCommands>> rideService;
+
+    public Globals() {
+        cabs = new HashMap<>();
+        wallets = new HashMap<>();
+        rideService = new ArrayList<>();
+    }
 }
