@@ -1,5 +1,8 @@
 package pods.cabs;
 
+import akka.actor.typed.*;
+import akka.actor.typed.javadsl.*;
+
 public class Wallet {
 
     public static final class WalletDetails {
