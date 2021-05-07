@@ -19,11 +19,10 @@ public class Main {
                 context -> {
                     Globals.cabs = new HashMap<>();
                     Globals.wallets = new HashMap<>();
-                    File file = new File("/Users/paraslohani/Documents/IISc/PoDS/akka-cab-hailing/src/main/java/pods/cabs/IDs.txt");
+                    File file = new File("src/main/java/pods/cabs/IDs.txt");
                     try {
                         Scanner scan = new Scanner(file);
                         int counter = 0;
-                        int amount = 0;
                         List<String> customers = new ArrayList<String>();
                         while(scan.hasNextLine()) {
                             String cur = scan.nextLine();
@@ -36,13 +35,13 @@ public class Main {
                                 customers.add(cur);
                             }
                             else {
-                                amount = Integer.parseInt(cur);
+                                Globals.initialBalance = Integer.parseInt(cur);
                             }
                         }
                         for(String customer: customers) {
                             ActorRef<Wallet.WalletCommands> wallet = context.spawn(Wallet.create(), "Wallet" + customer);
                             Globals.wallets.put(customer, wallet);
-                            wallet.tell(new Wallet.InitWallet(amount));
+                            wallet.tell(new Wallet.InitWallet(Globals.initialBalance));
                         }
                     }
                     catch (FileNotFoundException e) {
