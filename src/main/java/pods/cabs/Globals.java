@@ -11,11 +11,13 @@ public class Globals {
     public static HashMap<String, ActorRef<Wallet.WalletCommands>> wallets;
     public static ArrayList<ActorRef<RideService.RideCommands>> rideService;
     public static Integer initialBalance;
+    public static Integer rideId;
 
     public Globals() {
         cabs = new HashMap<>();
         wallets = new HashMap<>();
         rideService = new ArrayList<>();
         initialBalance = 0;
+        rideId = 0;
     }
 }

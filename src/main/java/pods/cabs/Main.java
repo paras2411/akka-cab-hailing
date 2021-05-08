@@ -1,6 +1,5 @@
 package pods.cabs;
 
-import pods.cabs.Globals;
 import akka.actor.typed.*;
 import akka.actor.typed.javadsl.*;
 import java.io.File;
@@ -10,15 +9,24 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Scanner;
 
-public class Main {
+public class Main  {
 
-    interface Started {}
 
-    public static Behavior<Void> create() {
+    public static class Started {
+        public final String message;
+        public Started(String message) {
+            this.message = message;
+        }
+    }
+
+
+
+    public static Behavior<Void> create(ActorRef<Started> probe, Main.Started check) {
         return Behaviors.setup(
                 context -> {
                     Globals.cabs = new HashMap<>();
                     Globals.wallets = new HashMap<>();
+                    Globals.rideId = 0;
                     File file = new File("src/main/java/pods/cabs/IDs.txt");
                     try {
                         Scanner scan = new Scanner(file);
@@ -51,7 +59,19 @@ public class Main {
                     Globals.rideService = new ArrayList<>();
                     for(int i=0; i<10; i++){
                         ActorRef<RideService.RideCommands> ride = context.spawn(RideService.create(), "ride" + i);
+                        for(String cab: Globals.cabs.keySet()) {
+                            ride.tell(new RideService.StoreCabStatus(cab, new CabStatus()));
+                        }
                         Globals.rideService.add(ride);
+                    }
+
+                    if(Globals.cabs.size() == 4 && Globals.rideService.size() == 10 && Globals.wallets.size() == 3) {
+                        probe.tell(check);
+                        System.out.println("paras");
+                    }
+                    else {
+                        probe.tell(new Started("Nope"));
+                        System.out.println("lohani");
                     }
 
                     return Behaviors.empty(); // don't want to receive any more messages
@@ -62,6 +82,6 @@ public class Main {
     }
 
     public static void main(String[] args) {
-        final ActorSystem<Void> main = ActorSystem.create(Main.create(), "CabHailing"); // create "user guardian" actor
+//        final ActorSystem<Void> main = ActorSystem.create(Main.create(), "CabHailing"); // create "user guardian" actor
     }
 }
