@@ -144,14 +144,14 @@ public class RideService extends AbstractBehavior<RideService.RideCommands>{
         }
     }
 
-    public static class RideResponse {
+    public static class RideResponse implements RideCommands {
 
         public final int rideId;
-        public final int cabId;
+        public final String cabId;
         public final int fare;
         public final ActorRef<FulfillRide.Command> fRide;
 
-        public RideResponse(int rideId, int cabId, int fare, ActorRef<FulfillRide.Command> fRide) {
+        public RideResponse(int rideId, String cabId, int fare, ActorRef<FulfillRide.Command> fRide) {
             this.rideId = rideId;
             this.cabId = cabId;
             this.fare = fare;

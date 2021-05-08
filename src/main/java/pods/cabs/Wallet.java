@@ -5,7 +5,7 @@ import akka.actor.typed.javadsl.*;
 
 public class Wallet extends AbstractBehavior<Wallet.WalletCommands> {
 
-    public static Integer walletAmount;
+    int walletAmount;
 
     public Wallet(ActorContext<WalletCommands> context) {
         super(context);
@@ -18,8 +18,9 @@ public class Wallet extends AbstractBehavior<Wallet.WalletCommands> {
     interface WalletCommands {}
 
     public static final class InitWallet implements WalletCommands {
+        public final int amount;
         public InitWallet(int amount) {
-            walletAmount = amount;
+            this.amount = amount;
         }
     }
 
@@ -56,8 +57,12 @@ public class Wallet extends AbstractBehavior<Wallet.WalletCommands> {
 
     public static final class ResponseBalance {
         public final int walletBalance;
-        public ResponseBalance(int walletBalance) {
+        public final int deducted;
+        public final String cabId;
+        public ResponseBalance(int walletBalance, int deducted, String cabId) {
             this.walletBalance = walletBalance;
+            this.deducted = deducted;
+            this.cabId = cabId;
         }
     }
 
@@ -68,7 +73,15 @@ public class Wallet extends AbstractBehavior<Wallet.WalletCommands> {
                 .onMessage(AddBalance.class, this::onAddBalance)
                 .onMessage(GetBalance.class, this::onGetBalance)
                 .onMessage(Reset.class, this::onReset)
+                .onMessage(InitWallet.class, this::onInitWallet)
                 .build();
+    }
+
+    public Behavior<WalletCommands> onInitWallet(InitWallet command) {
+
+        if(command.amount >= 0) this.walletAmount = command.amount;
+
+        return this;
     }
 
     public Behavior<WalletCommands> onReset(Reset command) {
@@ -83,7 +96,7 @@ public class Wallet extends AbstractBehavior<Wallet.WalletCommands> {
 
     private Behavior<WalletCommands> onGetBalance(GetBalance command) {
 
-        command.replyTo.tell(new ResponseBalance(walletAmount));
+        command.replyTo.tell(new ResponseBalance(this.walletAmount, 0, ""));
 
         return this;
     }
@@ -91,7 +104,7 @@ public class Wallet extends AbstractBehavior<Wallet.WalletCommands> {
     private Behavior<WalletCommands> onAddBalance(AddBalance command) {
 
         if(command.toAdd >= 0)
-            walletAmount += command.toAdd;
+            this.walletAmount += command.toAdd;
 
         return this;
     }
@@ -100,12 +113,14 @@ public class Wallet extends AbstractBehavior<Wallet.WalletCommands> {
 
         int responseAmount = -1;
 
-        if(command.toDeduct >= 0) {
-            walletAmount -= command.toDeduct;
-            responseAmount = walletAmount;
+        if(command.toDeduct >= 0 && command.toDeduct <= this.walletAmount) {
+            this.walletAmount -= command.toDeduct;
+            responseAmount = this.walletAmount;
+
+            command.replyTo.tell(new ResponseBalance(responseAmount, command.toDeduct, ""));
         }
 
-        command.replyTo.tell(new ResponseBalance(responseAmount));
+        command.replyTo.tell(new ResponseBalance(responseAmount, 0, ""));
 
         return this;
     }
