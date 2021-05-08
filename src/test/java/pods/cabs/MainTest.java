@@ -1,11 +1,7 @@
 package pods.cabs;
 
-import akka.actor.Actor;
-import akka.actor.ActorSystem;
-import akka.actor.testkit.typed.javadsl.TestKitJunitResource;
 import akka.actor.testkit.typed.javadsl.TestProbe;
 import akka.actor.typed.ActorRef;
-import akka.testkit.javadsl.TestKit;
 import junit.framework.TestCase;
 import akka.actor.testkit.typed.javadsl.ActorTestKit;
 import org.junit.AfterClass;
@@ -15,11 +11,15 @@ import org.junit.Test;
 
 import java.util.Scanner;
 
-import static pods.cabs.Main.*;
-
 public class MainTest extends TestCase {
 
+    @ClassRule
     static final ActorTestKit testKit = ActorTestKit.create();
+
+    @AfterClass
+    public static void cleanup() {
+        testKit.shutdownTestKit();
+    }
 
     @Test
     public void testMainActorCreation() {
@@ -30,7 +30,6 @@ public class MainTest extends TestCase {
         Main.Started check = probe.receiveMessage();
         //assertEquals(check.message, "All good");
         assertSame(check.message, "All good");
-
         //System.out.println("1");
     }
 
@@ -45,7 +44,6 @@ public class MainTest extends TestCase {
 
         Wallet.ResponseBalance check = probe.receiveMessage();
         assertEquals(check.walletBalance, 10000);
-
         //System.out.println("2");
     }
 
@@ -65,7 +63,6 @@ public class MainTest extends TestCase {
 
         Wallet.ResponseBalance check = probe.receiveMessage();
         assertEquals(check.walletBalance, 11000);
-
         //System.out.println("3");
     }
 
@@ -90,7 +87,6 @@ public class MainTest extends TestCase {
         //balDed.tell(new Wallet.DeductBalance(10001, probe.getRef()));
         //check = probe.receiveMessage();
         assertEquals(probe.receiveMessage().walletBalance, -1);
-
         //System.out.println("4");
     }
 
@@ -102,6 +98,7 @@ public class MainTest extends TestCase {
         //System.out.println(probe.receiveMessage());
 
         assertEquals(probe.receiveMessage().walletBalance, 10000);
+        //System.out.println("5");
 
         // not sending any message back
     }
@@ -113,7 +110,7 @@ public class MainTest extends TestCase {
 
         numRides.tell(new Cab.NumRides(probe.getRef()));
         assertEquals(probe.receiveMessage().numRides, 0);
-
+        //System.out.println("6");
 
         // increment function of NumRidesResponse is never used
         //how is it incrementing
@@ -127,6 +124,7 @@ public class MainTest extends TestCase {
         Globals.cabs.get("101").tell(new Cab.Reset(probe.getRef()));
         //cabRst.tell(new Cab.Reset(probe.getRef()));
         assertEquals(probe.receiveMessage().numRides, 0);
+        //System.out.println("7");
 
         //not sending any message back
     }
@@ -145,6 +143,7 @@ public class MainTest extends TestCase {
 
         assertNotSame(resp.rideId , -1);
         cab101.tell(new Cab.RideEnded(resp.rideId));
+        //System.out.println("8");
     }
 
     @Test
@@ -159,7 +158,7 @@ public class MainTest extends TestCase {
 //
 //        assertNotSame(resp.rideId , -1);
 //        cab101.tell(new Cab.RideEnded(resp.rideId));
+        //System.out.println("9");
     }
-
 
 }
