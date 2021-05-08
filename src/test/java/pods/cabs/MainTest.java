@@ -20,10 +20,11 @@ public class MainTest extends TestCase {
     public void testMainActorCreation() {
 
         TestProbe<Main.Started> probe = testKit.createTestProbe();
-        Main.Started check = new Main.Started("All good");
-        ActorRef<Void> mainRef = testKit.spawn(Main.create(probe.getRef(), check), "main_initialized");
+        ActorRef<Void> mainRef = testKit.spawn(Main.create(probe.getRef()), "main_initialized");
 
-        probe.expectMessage(check);
+        Main.Started check = probe.receiveMessage();
+//        assertEquals(check.message, "All good");
+        assertSame(check.message, "All good");
         // #test-spawn
     }
 

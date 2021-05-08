@@ -21,7 +21,7 @@ public class Main  {
 
 
 
-    public static Behavior<Void> create(ActorRef<Started> probe, Main.Started check) {
+    public static Behavior<Void> create(ActorRef<Started> probe) {
         return Behaviors.setup(
                 context -> {
                     Globals.cabs = new HashMap<>();
@@ -66,12 +66,10 @@ public class Main  {
                     }
 
                     if(Globals.cabs.size() == 4 && Globals.rideService.size() == 10 && Globals.wallets.size() == 3) {
-                        probe.tell(check);
-                        System.out.println("paras");
+                        probe.tell(new Started("All good"));
                     }
                     else {
                         probe.tell(new Started("Nope"));
-                        System.out.println("lohani");
                     }
 
                     return Behaviors.empty(); // don't want to receive any more messages
