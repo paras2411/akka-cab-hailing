@@ -7,11 +7,12 @@ import java.util.HashMap;
 
 public class Globals {
 
-    public static HashMap<String, ActorRef<Cab.CabCommands>> cabs;
-    public static HashMap<String, ActorRef<Wallet.WalletCommands>> wallets;
-    public static ArrayList<ActorRef<RideService.RideCommands>> rideService;
+    public static HashMap<String, ActorRef<Cab.Command>> cabs;
+    public static HashMap<String, ActorRef<Wallet.Command>> wallets;
+    public static ArrayList<ActorRef<RideService.Command>> rideService;
     public static Integer initialBalance;
     public static Integer rideId;
+    public static HashMap<String, ActorRef<FulfillRide>> fulCab;
 
     public Globals() {
         cabs = new HashMap<>();
@@ -19,5 +20,6 @@ public class Globals {
         rideService = new ArrayList<>();
         initialBalance = 0;
         rideId = 0;
+        fulCab = new HashMap<>();
     }
 }

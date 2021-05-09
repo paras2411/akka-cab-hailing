@@ -24,9 +24,12 @@ public class Main  {
     public static Behavior<Void> create(ActorRef<Started> probe) {
         return Behaviors.setup(
                 context -> {
+
                     Globals.cabs = new HashMap<>();
                     Globals.wallets = new HashMap<>();
-                    Globals.rideId = 1;
+                    Globals.rideId = 0;
+                    Globals.fulCab = new HashMap<>();
+
                     File file = new File("src/main/java/pods/cabs/IDs.txt");
                     try {
                         Scanner scan = new Scanner(file);
@@ -36,7 +39,7 @@ public class Main  {
                             String cur = scan.nextLine();
                             if(cur.equals("****")) counter++;
                             else if(counter == 1) {
-                                ActorRef<Cab.CabCommands> cab = context.spawn(Cab.create(), cur);
+                                ActorRef<Cab.Command> cab = context.spawn(Cab.create(), cur);
                                 Globals.cabs.put(cur, cab);
                             }
                             else if(counter == 2) {
@@ -47,7 +50,7 @@ public class Main  {
                             }
                         }
                         for(String customer: customers) {
-                            ActorRef<Wallet.WalletCommands> wallet = context.spawn(Wallet.create(), customer);
+                            ActorRef<Wallet.Command> wallet = context.spawn(Wallet.create(), customer);
                             Globals.wallets.put(customer, wallet);
                             wallet.tell(new Wallet.InitWallet(Globals.initialBalance));
                         }
@@ -58,7 +61,7 @@ public class Main  {
 
                     Globals.rideService = new ArrayList<>();
                     for(int i=0; i<10; i++){
-                        ActorRef<RideService.RideCommands> ride = context.spawn(RideService.create(), "ride" + i);
+                        ActorRef<RideService.Command> ride = context.spawn(RideService.create(), "ride" + i);
                         for(String cab: Globals.cabs.keySet()) {
                             ride.tell(new RideService.StoreCabStatus(cab, new CabStatus()));
                         }

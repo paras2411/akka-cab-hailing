@@ -5,11 +5,10 @@ import akka.actor.typed.ActorRef;
 import junit.framework.TestCase;
 import akka.actor.testkit.typed.javadsl.ActorTestKit;
 import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import java.util.Scanner;
+import java.time.Duration;
 
 public class MainTest extends TestCase {
 
@@ -21,6 +20,9 @@ public class MainTest extends TestCase {
         testKit.shutdownTestKit();
     }
 
+    /**
+     * Testing the Main actor
+     */
     @Test
     public void testMainActorCreation() {
 
@@ -28,138 +30,23 @@ public class MainTest extends TestCase {
         ActorRef<Void> mainRef = testKit.spawn(Main.create(probe.getRef()), "main_initialized");
 
         Main.Started check = probe.receiveMessage();
-        //assertEquals(check.message, "All good");
         assertSame(check.message, "All good");
-        //System.out.println("1");
     }
 
-    @Test
-    public void testGetWallet() {
-        TestProbe<Wallet.ResponseBalance> probe = testKit.createTestProbe();
-
-        Globals.wallets.get("201").tell(new Wallet.Reset(probe.getRef()));
-        Globals.wallets.get("201").tell(new Wallet.GetBalance(probe.getRef()));
-        //balChk.tell(new Wallet.Reset(probe.getRef()));
-        //balChk.tell(new Wallet.GetBalance(probe.getRef()));
-
-        Wallet.ResponseBalance check = probe.receiveMessage();
-        assertEquals(check.walletBalance, 10000);
-        //System.out.println("2");
-    }
-
-    @Test
-    public void testAddWallet(){
-        TestProbe<Wallet.ResponseBalance> probe = testKit.createTestProbe();
-
-        Globals.wallets.get("202").tell(new Wallet.Reset(probe.getRef()));
-        //Add 1000
-        Globals.wallets.get("202").tell(new Wallet.AddBalance(1000));
-        //Add 1000
-        Globals.wallets.get("202").tell(new Wallet.AddBalance(-1000));
-        Globals.wallets.get("202").tell(new Wallet.GetBalance(probe.getRef()));
-
-//        balAdd.tell(new Wallet.Reset(probe.getRef()));
-//        Add 1000
-//        balAdd.tell(new Wallet.AddBalance(1000));
-//        balAdd.tell(new Wallet.GetBalance(probe.getRef()));
-
-        Wallet.ResponseBalance check = probe.receiveMessage();
-        assertEquals(check.walletBalance, 11000);
-        //System.out.println("3");
-    }
-
-    @Test
-    public void testDeductWallet() {
-        TestProbe<Wallet.ResponseBalance> probe = testKit.createTestProbe();
-
-        Globals.wallets.get("203").tell(new Wallet.Reset(probe.getRef()));
-        //Deduct 1000
-        //Globals.wallets.get("203").tell(new Wallet.DeductBalance(1000, probe.getRef()));
-
-//        balDed.tell(new Wallet.Reset(probe.getRef()));
-//        Deduct 1000
-//        balDed.tell(new Wallet.DeductBalance(1000, probe.getRef()));
-
-        //Wallet.ResponseBalance check = probe.receiveMessage();
-        //assertEquals(check.walletBalance, 9000);
-
-
-        //Deduct 10001 -> Not Possible
-        Globals.wallets.get("203").tell(new Wallet.DeductBalance(10001, probe.getRef()));
-        //balDed.tell(new Wallet.DeductBalance(10001, probe.getRef()));
-        //check = probe.receiveMessage();
-        assertEquals(probe.receiveMessage().walletBalance, -1);
-        //System.out.println("4");
-    }
-
-    @Test
-    public void testResetWallet(){
-        TestProbe<Wallet.ResponseBalance> probe = testKit.createTestProbe();
-
-        Globals.wallets.get("201").tell(new Wallet.Reset(probe.getRef()));
-        //System.out.println(probe.receiveMessage());
-
-        assertEquals(probe.receiveMessage().walletBalance, 10000);
-        //System.out.println("5");
-
-        // not sending any message back
-    }
-
-    @Test
-    public void testNumRideCab(){
-        TestProbe<Cab.NumRidesResponse> probe = testKit.createTestProbe();
-        ActorRef<Cab.CabCommands> numRides = testKit.spawn(Cab.create(), "cab_rides");
-
-        numRides.tell(new Cab.NumRides(probe.getRef()));
-        assertEquals(probe.receiveMessage().numRides, 0);
-        //System.out.println("6");
-    }
-
-    @Test
-    public void testResetCab(){
-        TestProbe<Cab.NumRidesResponse> probe = testKit.createTestProbe();
-        //ActorRef<Cab.CabCommands> cabRst = testKit.spawn(Cab.create(), "cab_reset");
-
-        Globals.cabs.get("101").tell(new Cab.Reset(probe.getRef()));
-        //cabRst.tell(new Cab.Reset(probe.getRef()));
-        assertEquals(probe.receiveMessage().numRides, 0);
-        //System.out.println("7");
-    }
-
-    @Test
-    public void testCab() {
-        //sir's testcase
-
-        ActorRef<Cab.CabCommands> cab101 = Globals.cabs.get("101");
-        cab101.tell(new Cab.SignIn(10));
-        ActorRef<RideService.RideCommands> rideService = Globals.rideService.get(0);
-
-        TestProbe<Cab.NumRidesResponse> probe1 = testKit.createTestProbe();
-        ActorRef<Cab.CabCommands> numRides = testKit.spawn(Cab.create(), "cab_num_rides");
-
-        TestProbe<RideService.RideResponse> probe = testKit.createTestProbe();
-        rideService.tell(new RideService.RequestRide("201", 10, 100, probe.ref()));
-        RideService.RideResponse resp = probe.receiveMessage();
-
-        assertNotSame(resp.rideId , -1);
-
-        // test #ride after allocating a ride
-        numRides.tell(new Cab.NumRides(probe1.getRef()));
-        assertEquals(probe1.receiveMessage().numRides, 1);
-
-        cab101.tell(new Cab.RideEnded(resp.rideId));
-        // test #ride after ending a ride
-        numRides.tell(new Cab.NumRides(probe1.getRef()));
-        assertEquals(probe1.receiveMessage().numRides, 1);
-
-        //System.out.println("8");
-    }
-
+    /**
+     * It tests the sign in command of cab actor
+     */
     @Test
     public void testSignIn() {
-        ActorRef<Cab.CabCommands> cab102 = Globals.cabs.get("102");
+
+        TestProbe<Cab.NumRidesResponse> resProbe = testKit.createTestProbe();
+        Globals.cabs.get("101").tell(new Cab.Reset(resProbe.getRef()));
+        Cab.NumRidesResponse respRes = resProbe.receiveMessage();
+        assertEquals(respRes.numRides, 0);
+
+        ActorRef<Cab.Command> cab102 = Globals.cabs.get("102");
         cab102.tell(new Cab.SignIn(20));
-        ActorRef<RideService.RideCommands> rideService = Globals.rideService.get(1);
+        ActorRef<RideService.Command> rideService = Globals.rideService.get(1);
         TestProbe<Cab.GetCabStatus> probe1 = testKit.createTestProbe();
         cab102.tell(new Cab.replyCabStatus(probe1.ref()));
 
@@ -173,10 +60,19 @@ public class MainTest extends TestCase {
         assertEquals(status.status.majorState, MajorState.SignedIn);
     }
 
+    /**
+     * It tests the sign out command of cab actor as well as check the cache table of ride service
+     */
     @Test
     public void testSignOut(){
-        ActorRef<Cab.CabCommands> cab103 = Globals.cabs.get("103");
-        ActorRef<RideService.RideCommands> rideService = Globals.rideService.get(2);
+
+        TestProbe<Cab.NumRidesResponse> resProbe = testKit.createTestProbe();
+        Globals.cabs.get("101").tell(new Cab.Reset(resProbe.getRef()));
+        Cab.NumRidesResponse respRes = resProbe.receiveMessage();
+        assertEquals(respRes.numRides, 0);
+
+        ActorRef<Cab.Command> cab103 = Globals.cabs.get("103");
+        ActorRef<RideService.Command> rideService = Globals.rideService.get(2);
         cab103.tell(new Cab.SignOut());
         TestProbe<Cab.GetCabStatus> probe1 = testKit.createTestProbe();
         TestProbe<RideService.GetCabStatus> probe2 = testKit.createTestProbe();
@@ -188,67 +84,327 @@ public class MainTest extends TestCase {
         assertEquals(probe2.receiveMessage().status.majorState, MajorState.SignedOut);
     }
 
+    /**
+     * In this test case, we are first signing one of the cab then requesting the ride such that it is assigned to the
+     * cab. After that we are checking for the Ride ended as well. Also checking the alternate interested case, where
+     * we are requesting ride which makes that cab interested for next request.
+     */
+    @Test
+    public void testRequestRideAndRideEnded() {
+
+        TestProbe<Cab.NumRidesResponse> resProbe = testKit.createTestProbe();
+        Globals.cabs.get("101").tell(new Cab.Reset(resProbe.getRef()));
+        Cab.NumRidesResponse respRes = resProbe.receiveMessage();
+        assertEquals(respRes.numRides, 0);
+
+        TestProbe<Wallet.ResponseBalance> resProbeWallet = testKit.createTestProbe();
+        ActorRef<Wallet.Command> cust201 = Globals.wallets.get("201");
+        cust201.tell(new Wallet.Reset(resProbeWallet.getRef()));
+        Wallet.ResponseBalance amt = resProbeWallet.receiveMessage();
+        assertEquals(amt.walletBalance, 10000);
+
+        ActorRef<Cab.Command> cab101 = Globals.cabs.get("102");
+        cab101.tell(new Cab.SignIn(20));
+        ActorRef<RideService.Command> rideService = Globals.rideService.get(0);
+        TestProbe<Cab.GetCabStatus> probe1 = testKit.createTestProbe();
+        cab101.tell(new Cab.replyCabStatus(probe1.ref()));
+        Cab.GetCabStatus cabStatus = probe1.receiveMessage();
+        assertEquals(cabStatus.status.majorState, MajorState.SignedIn);
+
+        TestProbe<RideService.GetCabStatus> probe2 = testKit.createTestProbe();
+        rideService.tell(new RideService.replyCabStatus(probe2.ref(), "102"));
+        RideService.GetCabStatus status = probe2.receiveMessage();
+        assertEquals(status.status.majorState, MajorState.SignedIn);
+
+        TestProbe<RideService.RideResponse> probe3 = testKit.createTestProbe();
+        rideService.tell(new RideService.RequestRide("202", 10, 100, probe3.ref()));
+        RideService.RideResponse resp = probe3.receiveMessage(Duration.ofMinutes(1));
+        assertNotSame(resp.rideId , -1);
+
+        String cabIds = resp.cabId;
+
+        Globals.cabs.get(resp.cabId).tell(new Cab.RideEnded(resp.rideId));
+
+        Globals.cabs.get(resp.cabId).tell(new Cab.replyCabStatus(probe1.ref()));
+        cabStatus = probe1.receiveMessage();
+        assertEquals(cabStatus.status.minorState, MinorState.Available);
+        assertEquals(cabStatus.status.interested, Boolean.FALSE);
+
+        rideService.tell(new RideService.RequestRide("202", 90, 101, probe3.ref()));
+        resp = probe3.receiveMessage(Duration.ofMinutes(1));
+        assertSame(resp.rideId , -1);
+
+        Globals.cabs.get(cabIds).tell(new Cab.replyCabStatus(probe1.ref()));
+        cabStatus = probe1.receiveMessage();
+        assertEquals(cabStatus.status.minorState, MinorState.Available);
+        assertEquals(cabStatus.status.interested, Boolean.TRUE);
+
+    }
+
+
+    /**
+     * In this test case, we are adding amount and getting the balance after that.
+     */
+    @Test
+    public void testAddAmount() {
+
+
+        TestProbe<Wallet.ResponseBalance> probe1 = testKit.createTestProbe();
+        ActorRef<Wallet.Command> cust201 = Globals.wallets.get("201");
+        cust201.tell(new Wallet.Reset(probe1.getRef()));
+        Wallet.ResponseBalance amt = probe1.receiveMessage();
+        assertEquals(amt.walletBalance, 10000);
+
+        TestProbe<Wallet.ResponseBalance> probe2 = testKit.createTestProbe();
+        cust201.tell(new Wallet.AddBalance(100));
+        cust201.tell(new Wallet.AddBalance(-100));
+        cust201.tell(new Wallet.GetBalance(probe2.ref()));
+        amt = probe2.receiveMessage();
+        assertEquals(amt.walletBalance, 10100);
+
+    }
+
+
+    /**
+     * It tests the deduct functionality of wallet actor
+     */
+    @Test
+    public void testDeductAmount() {
+
+        TestProbe<Wallet.ResponseBalance> probe1 = testKit.createTestProbe();
+        ActorRef<Wallet.Command> cust201 = Globals.wallets.get("201");
+        cust201.tell(new Wallet.Reset(probe1.getRef()));
+        Wallet.ResponseBalance amt = probe1.receiveMessage();
+        assertEquals(amt.walletBalance, 10000);
+
+        Globals.wallets.get("202").tell(new Wallet.DeductBalance(1000, probe1.getRef()));
+
+        Wallet.ResponseBalance check = probe1.receiveMessage();
+        assertEquals(check.walletBalance, 9000);
+
+        Globals.wallets.get("202").tell(new Wallet.DeductBalance(-1000, probe1.getRef()));
+
+        check = probe1.receiveMessage();
+        assertEquals(check.walletBalance, -1);
+
+        Globals.wallets.get("202").tell(new Wallet.DeductBalance(10000, probe1.getRef()));
+
+        check = probe1.receiveMessage();
+        assertEquals(check.walletBalance, -1);
+
+    }
+
+
+    /**
+     * This tests the flow of request ride and finally tests if the number of rides is increased for the cab if the
+     * ride allocates to it.
+     */
+    @Test
+    public void testNumRideCab(){
+
+        TestProbe<Cab.NumRidesResponse> probe1 = testKit.createTestProbe();
+        Globals.cabs.get("101").tell(new Cab.Reset(probe1.getRef()));
+        Cab.NumRidesResponse resp = probe1.receiveMessage();
+        assertEquals(resp.numRides, 0);
+
+        TestProbe<Wallet.ResponseBalance> probe2 = testKit.createTestProbe();
+        ActorRef<Wallet.Command> cust201 = Globals.wallets.get("201");
+        cust201.tell(new Wallet.Reset(probe2.getRef()));
+        Wallet.ResponseBalance amt = probe2.receiveMessage();
+        assertEquals(amt.walletBalance, 10000);
+
+        ActorRef<Cab.Command> cab101 = Globals.cabs.get("101");
+
+        TestProbe<Cab.GetCabStatus> probe3 = testKit.createTestProbe();
+        TestProbe<RideService.RideResponse> probe4 = testKit.createTestProbe();
+
+        cab101.tell(new Cab.replyCabStatus(probe3.getRef()));
+        assertEquals(probe3.receiveMessage().status.majorState, MajorState.SignedOut);
+
+        cab101.tell(new Cab.SignIn(20));
+        cab101.tell(new Cab.replyCabStatus(probe3.getRef()));
+        Cab.GetCabStatus cabStatus = probe3.receiveMessage();
+        assertEquals(cabStatus.status.majorState, MajorState.SignedIn);
+        assertEquals(cabStatus.status.interested, Boolean.TRUE);
+
+        ActorRef<RideService.Command> rideService = Globals.rideService.get(0);
+        rideService.tell(new RideService.RequestRide("201", 20, 50, probe4.getRef()));
+        RideService.RideResponse rideResp = probe4.receiveMessage(Duration.ofMinutes(1));
+        assertNotSame(rideResp.rideId , -1);
+
+
+        Globals.cabs.get("101").tell(new Cab.NumRides(probe1.getRef()));
+        assertEquals(probe1.receiveMessage().numRides, 1);
+
+    }
+
+    /**
+     * This tests the flow of request ride and finally tests if the number of rides is increased for the cab if the
+     * ride allocates to it.
+     */
+    @Test
+    public void testWalletBalanceIsLessThanRideCost(){
+
+        TestProbe<Cab.NumRidesResponse> probe1 = testKit.createTestProbe();
+        Globals.cabs.get("101").tell(new Cab.Reset(probe1.getRef()));
+        Cab.NumRidesResponse resp = probe1.receiveMessage();
+        assertEquals(resp.numRides, 0);
+
+        TestProbe<Wallet.ResponseBalance> probe2 = testKit.createTestProbe();
+        ActorRef<Wallet.Command> cust201 = Globals.wallets.get("201");
+        cust201.tell(new Wallet.Reset(probe2.getRef()));
+        Wallet.ResponseBalance amt = probe2.receiveMessage();
+        assertEquals(amt.walletBalance, 10000);
+
+        ActorRef<Cab.Command> cab101 = Globals.cabs.get("101");
+
+        TestProbe<Cab.GetCabStatus> probe3 = testKit.createTestProbe();
+        TestProbe<RideService.RideResponse> probe4 = testKit.createTestProbe();
+
+        cab101.tell(new Cab.replyCabStatus(probe3.getRef()));
+        assertEquals(probe3.receiveMessage().status.majorState, MajorState.SignedOut);
+
+        cab101.tell(new Cab.SignIn(20));
+        cab101.tell(new Cab.replyCabStatus(probe3.getRef()));
+        Cab.GetCabStatus cabStatus = probe3.receiveMessage();
+        assertEquals(cabStatus.status.majorState, MajorState.SignedIn);
+        assertEquals(cabStatus.status.interested, Boolean.TRUE);
+
+        ActorRef<RideService.Command> rideService = Globals.rideService.get(0);
+        rideService.tell(new RideService.RequestRide("202", 20, 60, probe4.getRef()));
+        RideService.RideResponse rideResp = probe4.receiveMessage(Duration.ofMinutes(1));
+        assertNotSame(rideResp.rideId , -1);
+
+
+        Globals.cabs.get("101").tell(new Cab.NumRides(probe1.getRef()));
+        assertEquals(probe1.receiveMessage().numRides, 1);
+
+    }
+
+
+    /**
+     * It tests the status of cab when new cab actor is spawn
+     */
     @Test
     public void testNewCab(){
-        //try{Thread.sleep(500);}catch(InterruptedException e){System.out.println(e);}
-        ActorRef<Cab.CabCommands> cab105 = testKit.spawn(Cab.create(), "105");
-        ActorRef<RideService.RideCommands> rideService = Globals.rideService.get(3);
 
-        CabStatus var = new CabStatus();
-        var.interested = false;
-        var.location = 0;
-        var.majorState = MajorState.SignedOut;
-        var.minorState = MinorState.NotAvailable;
+
+        TestProbe<Cab.NumRidesResponse> resProbe = testKit.createTestProbe();
+        Globals.cabs.get("101").tell(new Cab.Reset(resProbe.getRef()));
+        Cab.NumRidesResponse respRes = resProbe.receiveMessage();
+        assertEquals(respRes.numRides, 0);
+
+        ActorRef<Cab.Command> cab105 = testKit.spawn(Cab.create(), "105");
+        CabStatus status = new CabStatus();
 
         TestProbe<Cab.GetCabStatus> probe1 = testKit.createTestProbe();
         TestProbe<RideService.GetCabStatus> probe2 = testKit.createTestProbe();
 
         cab105.tell(new Cab.replyCabStatus(probe1.getRef()));
-        //assertEquals(probe1.receiveMessage().status, var);
-        Cab.GetCabStatus status1 = probe1.receiveMessage();
-        assertEquals(status1.status.majorState, var.majorState);
-        assertEquals(status1.status.minorState, var.minorState);
-        assertEquals(status1.status.interested, var.interested);
-        assertEquals(status1.status.location, var.location);
+        Cab.GetCabStatus cabStatus = probe1.receiveMessage();
+        assertSame(cabStatus.status.majorState, status.majorState);
+        assertSame(cabStatus.status.minorState, status.minorState);
+        assertSame(cabStatus.status.interested, status.interested);
+        assertSame(cabStatus.status.location, status.location);
 
-        // What will be the cabId
     }
 
+    /**
+     * First signin cab 102 then add 2000 in wallet 202
+     * Now assign a ride from 10 to 1100 and then add -2000 and check balance
+     */
     @Test
-    public void testAfterGivingRide (){
-        ActorRef<Cab.CabCommands> cab104 = Globals.cabs.get("104");
-        cab104.tell(new Cab.SignIn(50));
-        ActorRef<RideService.RideCommands> rideService = Globals.rideService.get(4);
+    public void testpv1(){
 
-        ActorRef<Cab.CabCommands> stats = testKit.spawn(Cab.create(), "cab_status");
+        TestProbe<Cab.NumRidesResponse> resProbe = testKit.createTestProbe();
+        Globals.cabs.get("101").tell(new Cab.Reset(resProbe.getRef()));
+        Cab.NumRidesResponse respRes = resProbe.receiveMessage();
+        assertEquals(respRes.numRides, 0);
 
+        TestProbe<Wallet.ResponseBalance> probe2 = testKit.createTestProbe();
+        ActorRef<Wallet.Command> cust201 = Globals.wallets.get("201");
+        cust201.tell(new Wallet.Reset(probe2.getRef()));
+        Wallet.ResponseBalance amt = probe2.receiveMessage();
+        assertEquals(amt.walletBalance, 10000);
+
+        ActorRef<Cab.Command> cab102 = Globals.cabs.get("102");
+        ActorRef<RideService.Command> rideService = Globals.rideService.get(1);
         TestProbe<Cab.GetCabStatus> probe1 = testKit.createTestProbe();
-        TestProbe<RideService.RideResponse> probe2 = testKit.createTestProbe();
-        rideService.tell(new RideService.RequestRide("203", 50, 60, probe2.ref()));
-        RideService.RideResponse resp = probe2.receiveMessage();
+        TestProbe<Wallet.ResponseBalance> probe = testKit.createTestProbe();
+        TestProbe<RideService.RideResponse> probe3 = testKit.createTestProbe();
 
+
+        cab102.tell(new Cab.SignIn(0));
+        cab102.tell(new Cab.replyCabStatus(probe1.getRef()));
+        assertEquals(probe1.receiveMessage().status.majorState, MajorState.SignedIn);
+
+        Globals.wallets.get("202").tell(new Wallet.AddBalance(2000));
+        Globals.wallets.get("202").tell(new Wallet.GetBalance(probe.getRef()));
+        assertEquals(probe.receiveMessage().walletBalance, 12000);
+
+        rideService.tell(new RideService.RequestRide("202", 10, 1100, probe3.getRef()));
+        RideService.RideResponse resp = probe3.receiveMessage(Duration.ofMinutes(1));
         assertNotSame(resp.rideId , -1);
 
-        cab104.tell(new Cab.RideEnded(resp.rideId)); //due to this
+        Globals.wallets.get("202").tell(new Wallet.AddBalance(-2000));
+        Globals.wallets.get("202").tell(new Wallet.GetBalance(probe.getRef()));
 
-        cab104.tell(new Cab.replyCabStatus(probe1.getRef()));
-
-        Cab.GetCabStatus status = probe1.receiveMessage();
-
-        CabStatus var = new CabStatus();
-        var.interested = false;
-        var.location = 60;
-        var.majorState = MajorState.SignedIn;
-        var.minorState = MinorState.Available;
-
-        assertEquals(status.status.majorState, var.majorState);
-        assertEquals(status.status.minorState, var.minorState);
-        assertEquals(status.status.interested, var.interested);
-        assertEquals(status.status.location, var.location);
+        assertEquals(probe.receiveMessage().walletBalance, 1000);
+        System.out.println("Paras");
     }
 
+
+    /**
+     * Testing the alternate ride request
+     */
     @Test
-    public void fun(){
+    public void testpv2(){
+
+        TestProbe<Cab.NumRidesResponse> resProbe = testKit.createTestProbe();
+        Globals.cabs.get("101").tell(new Cab.Reset(resProbe.getRef()));
+        Cab.NumRidesResponse respRes = resProbe.receiveMessage();
+        assertEquals(respRes.numRides, 0);
+
+        TestProbe<Wallet.ResponseBalance> probe2 = testKit.createTestProbe();
+        ActorRef<Wallet.Command> cust201 = Globals.wallets.get("201");
+        cust201.tell(new Wallet.Reset(probe2.getRef()));
+        Wallet.ResponseBalance amt = probe2.receiveMessage();
+        assertEquals(amt.walletBalance, 10000);
+
+        ActorRef<Cab.Command> cab101 = Globals.cabs.get("101");
+        TestProbe<Cab.GetCabStatus> probe1 = testKit.createTestProbe();
+        ActorRef<Cab.Command> cab102 = Globals.cabs.get("102");
+        ActorRef<RideService.Command> rideService = Globals.rideService.get(4);
+        ActorRef<RideService.Command> rideService1 = Globals.rideService.get(5);
+        TestProbe<RideService.RideResponse> probe4 = testKit.createTestProbe();
+
+        cab101.tell(new Cab.SignIn(10));
+        cab101.tell(new Cab.replyCabStatus(probe1.getRef()));
+        assertEquals(probe1.receiveMessage().status.majorState, MajorState.SignedIn);
+
+        cab102.tell(new Cab.SignIn(30));
+        cab102.tell(new Cab.replyCabStatus(probe1.getRef()));
+        assertEquals(probe1.receiveMessage().status.majorState, MajorState.SignedIn);
+
+        rideService.tell(new RideService.RequestRide("201", 10, 100, probe4.getRef()));
+        RideService.RideResponse resp1 = probe4.receiveMessage(Duration.ofMinutes(1));
+        assertNotSame(resp1.rideId , -1);
+
+        rideService1.tell(new RideService.RequestRide("202", 10, 110, probe4.getRef()));
+        RideService.RideResponse resp2 = probe4.receiveMessage(Duration.ofMinutes(1));
+        assertNotSame(resp2.rideId , -1);
+
+        cab101.tell(new Cab.RideEnded(resp1.rideId));
+
+        rideService.tell(new RideService.RequestRide("201", 100, 10, probe4.getRef()));
+        resp1 = probe4.receiveMessage(Duration.ofMinutes(1));
+        assertEquals(resp1.rideId , -1);
+
+        rideService.tell(new RideService.RequestRide("201", 100, 10, probe4.getRef()));
+        resp1 = probe4.receiveMessage(Duration.ofMinutes(1));
+        assertNotSame(resp1.rideId , -1);
+        System.out.println("lohani");
 
     }
+
 }

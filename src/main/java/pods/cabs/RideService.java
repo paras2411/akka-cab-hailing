@@ -5,12 +5,12 @@ import akka.actor.typed.javadsl.*;
 
 import java.util.HashMap;
 
-public class RideService extends AbstractBehavior<RideService.RideCommands>{
+public class RideService extends AbstractBehavior<RideService.Command>{
 
     HashMap<String, CabStatus> cabs;
 
     @Override
-    public Receive<RideService.RideCommands> createReceive() {
+    public Receive<Command> createReceive() {
 
         return newReceiveBuilder()
                 .onMessage(CabSignsIn.class, this::onCabSignsIn)
@@ -23,7 +23,7 @@ public class RideService extends AbstractBehavior<RideService.RideCommands>{
 
     }
 
-    public Behavior<RideService.RideCommands> onreplyCabStatus(replyCabStatus command) {
+    public Behavior<Command> onreplyCabStatus(replyCabStatus command) {
 
         command.replyTo.tell(new GetCabStatus(cabs.get(command.cabId)));
         return this;
@@ -34,7 +34,7 @@ public class RideService extends AbstractBehavior<RideService.RideCommands>{
             this.status = status;
         }
     }
-    public static final class replyCabStatus implements RideService.RideCommands {
+    public static final class replyCabStatus implements Command {
         public final ActorRef<RideService.GetCabStatus> replyTo;
         public final String cabId;
         public replyCabStatus(ActorRef<RideService.GetCabStatus> replyTo, String cabId) {
@@ -44,21 +44,21 @@ public class RideService extends AbstractBehavior<RideService.RideCommands>{
     }
 
 
-    public Behavior<RideCommands> onStoreCabStatus(StoreCabStatus command) {
+    public Behavior<Command> onStoreCabStatus(StoreCabStatus command) {
 
         cabs.put(command.cabId, command.cabStatus);
 
         return this;
     }
 
-    public Behavior<RideCommands> onUpdateCabStatus(UpdateCabStatus command) {
+    public Behavior<Command> onUpdateCabStatus(UpdateCabStatus command) {
 
         cabs.put(command.cabId, command.cabStatus);
         broadcastUpdate(command.cabId);
 
         return this;
     }
-    public Behavior<RideCommands> onRequestRide(RequestRide command) {
+    public Behavior<Command> onRequestRide(RequestRide command) {
 
         ActorRef<FulfillRide.Command> fulFillActor = getContext().spawn(FulfillRide.create(
                 cabs,
@@ -66,7 +66,7 @@ public class RideService extends AbstractBehavior<RideService.RideCommands>{
                 command.destinationLoc,
                 command.custId,
                 command.replyTo
-        ), command.custId);
+        ), command.custId + command.sourceLoc + command.destinationLoc);
 
         fulFillActor.tell(new FulfillRide.RequestRide());
 
@@ -74,12 +74,12 @@ public class RideService extends AbstractBehavior<RideService.RideCommands>{
     }
 
     public void broadcastUpdate(String cabId) {
-        for(ActorRef<RideService.RideCommands> ride: Globals.rideService) {
+        for(ActorRef<Command> ride: Globals.rideService) {
             ride.tell(new StoreCabStatus(cabId, cabs.get(cabId)));
         }
     }
 
-    public Behavior<RideCommands> onCabSignsIn(CabSignsIn command) {
+    public Behavior<Command> onCabSignsIn(CabSignsIn command) {
 
         String cabId = command.cabId;
         CabStatus cabStatus = cabs.get(cabId);
@@ -91,7 +91,7 @@ public class RideService extends AbstractBehavior<RideService.RideCommands>{
         return this;
     }
 
-    public Behavior<RideCommands> onCabSignsOut(CabSignsOut command) {
+    public Behavior<Command> onCabSignsOut(CabSignsOut command) {
 
         String cabId = command.cabId;
         CabStatus cabStatus = cabs.get(cabId);
@@ -101,18 +101,18 @@ public class RideService extends AbstractBehavior<RideService.RideCommands>{
         return this;
     }
 
-    public RideService(ActorContext<RideCommands> context) {
+    public RideService(ActorContext<Command> context) {
         super(context);
         cabs = new HashMap<>();
     }
 
-    public static Behavior<RideCommands> create() {
+    public static Behavior<Command> create() {
         return Behaviors.setup(RideService::new);
     }
 
-    interface RideCommands {}
+    interface Command {}
 
-    public static class StoreCabStatus implements RideCommands {
+    public static class StoreCabStatus implements Command {
         public final String cabId;
         public final CabStatus cabStatus;
 
@@ -122,7 +122,7 @@ public class RideService extends AbstractBehavior<RideService.RideCommands>{
         }
     }
 
-    public static class UpdateCabStatus implements RideCommands {
+    public static class UpdateCabStatus implements Command {
 
         public final String cabId;
         public final CabStatus cabStatus;
@@ -133,7 +133,7 @@ public class RideService extends AbstractBehavior<RideService.RideCommands>{
         }
     }
 
-    public static class CabSignsIn implements RideCommands {
+    public static class CabSignsIn implements Command {
         public final String cabId;
         public final int initialPos;
 
@@ -143,7 +143,7 @@ public class RideService extends AbstractBehavior<RideService.RideCommands>{
         }
     }
 
-    public static class CabSignsOut implements RideCommands {
+    public static class CabSignsOut implements Command {
         public final String cabId;
 
         public CabSignsOut(String cabId) {
@@ -151,7 +151,7 @@ public class RideService extends AbstractBehavior<RideService.RideCommands>{
         }
     }
 
-    public static class RequestRide implements RideCommands {
+    public static class RequestRide implements Command {
         public final String custId;
         public final int sourceLoc;
         public final int destinationLoc;
@@ -165,7 +165,7 @@ public class RideService extends AbstractBehavior<RideService.RideCommands>{
         }
     }
 
-    public static class RideResponse implements RideCommands {
+    public static class RideResponse implements Command {
 
         public final int rideId;
         public final String cabId;
@@ -183,3 +183,36 @@ public class RideService extends AbstractBehavior<RideService.RideCommands>{
 
 
 }
+
+
+//@Test
+//public void testSignIn() {
+//
+//    ActorRef<Cab.CabCommands> cab101 = Globals.cabs.get("102");
+//    cab101.tell(new Cab.SignIn(20));
+//    ActorRef<RideService.RideCommands> rideService = Globals.rideService.get(0);
+//    TestProbe<Cab.GetCabStatus> probe1 = testKit.createTestProbe();
+//    cab101.tell(new Cab.replyCabStatus(probe1.ref()));
+//
+//    Cab.GetCabStatus cabStatus = probe1.receiveMessage();
+//    assertEquals(cabStatus.status.majorState, MajorState.SignedIn);
+//
+//    TestProbe<RideService.GetCabStatus> probe2 = testKit.createTestProbe();
+//
+//    rideService.tell(new RideService.replyCabStatus(probe2.ref(), "102"));
+//    RideService.GetCabStatus status = probe2.receiveMessage();
+//    assertEquals(status.status.majorState, MajorState.SignedIn);
+//
+//    TestProbe<RideService.RideResponse> probe3 = testKit.createTestProbe();
+//    rideService.tell(new RideService.RequestRide("201", 10, 100, probe3.ref()));
+//    RideService.RideResponse resp = probe3.receiveMessage(Duration.ofMinutes(1));
+//
+//    assertNotSame(resp.rideId , -1);
+//
+//    Globals.cabs.get(resp.cabId).tell(new Cab.RideEnded());
+//    Globals.cabs.get(resp.cabId).tell(new Cab.replyCabStatus(probe1.ref()));
+//
+//    cabStatus = probe1.receiveMessage();
+//    assertEquals(cabStatus.status.minorState, MinorState.Available);
+//
+//}

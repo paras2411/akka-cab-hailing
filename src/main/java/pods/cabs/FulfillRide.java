@@ -1,13 +1,17 @@
 package pods.cabs;
 
+import akka.actor.ActorSelection;
 import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.AbstractBehavior;
 import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Receive;
+import akka.pattern.Patterns;
 
+import java.time.Duration;
 import java.util.HashMap;
+import java.util.regex.Pattern;
 
 public class FulfillRide extends AbstractBehavior<FulfillRide.Command> {
 
@@ -46,20 +50,6 @@ public class FulfillRide extends AbstractBehavior<FulfillRide.Command> {
         }
     }
 
-    public static final class CabStartedRide implements Command {
-        int rideId;
-        public CabStartedRide(int rideId) {
-            this.rideId = rideId;
-        }
-    }
-
-    public static final class RequestCab implements Command {
-
-        public final String cabId;
-        public RequestCab(String cabId) {
-            this.cabId = cabId;
-        }
-    }
 
     public static class WrappedResponseBalance implements Command {
         final Wallet.ResponseBalance response;
@@ -101,9 +91,6 @@ public class FulfillRide extends AbstractBehavior<FulfillRide.Command> {
         return newReceiveBuilder()
                 .onMessage(RequestRide.class, this::onRequestRide)
                 .onMessage(WrappedResponseBalance.class, this::onResponseBalance)
-                .onMessage(RequestCab.class, this::onRequestCab)
-                .onMessage(RideAssigned.class, this::onRideAssigned)
-                .onMessage(CabStartedRide.class, this::onCabStartedRide)
                 .onMessage(RideEnded.class, this::onRideEnded)
                 .build();
     }
@@ -114,53 +101,13 @@ public class FulfillRide extends AbstractBehavior<FulfillRide.Command> {
         return Behaviors.stopped();
     }
 
-    public Behavior<Command> onCabStartedRide(CabStartedRide command) {
-
-        this.rideId = command.rideId;
-        return this;
-    }
-
-    public Behavior<Command> onRideAssigned(RideAssigned command) {
-
-        if(command.alloted) {
-            int fare = Math.abs(this.sourceLoc - this.destinationLoc) * 10 +
-                    Math.abs(this.cabs.get(command.cabId).location - this.sourceLoc) * 10;
-            ActorRef<Wallet.ResponseBalance> balRef = getContext().messageAdapter(Wallet.ResponseBalance.class,
-                    WrappedResponseBalance::new);
-            Globals.wallets.get(this.custId).tell(new Wallet.DeductBalance(fare, balRef));
-        }
-        return this;
-    }
-
     public Behavior<Command> onResponseBalance(WrappedResponseBalance command) {
 
-        if(command.response.deducted > 0) {
-            Globals.cabs.get(command.response.cabId).tell(new Cab.RideStarted(
-                    Globals.rideId + 1,
-                    command.response.cabId,
-                    this.sourceLoc,
-                    this.destinationLoc,
-                    getContext().getSelf())
-            );
-        }
-        if(this.rideId == -1) {
-            Globals.cabs.get(command.response.cabId).tell(new Cab.RideCancelled(command.response.cabId));
-            Globals.wallets.get(this.custId).tell(new Wallet.AddBalance(command.response.deducted));
-        }
-        this.cabAssigned = command.response.cabId;
-        this.rideFare = command.response.deducted;
         return this;
     }
 
-    public Behavior<Command> onRequestCab(RequestCab command) {
 
-        if(this.rideId != -1) return this;
-
-
-        return this;
-    }
-
-    public Behavior<Command> onRequestRide(RequestRide command) {
+    public Behavior<Command> onRequestRide(RequestRide command) throws InterruptedException {
 
         // finding the nearest 3 cabs
         int[] distance = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE};
@@ -171,6 +118,7 @@ public class FulfillRide extends AbstractBehavior<FulfillRide.Command> {
             for(int i = 0; i < 3; i++) {
                 if(far < distance[i]) {
                     swap(distance, cabId, cab, far, i);
+                    break;
                 }
                 else if(far == distance[i]) {
                     if(this.cabs.get(cabId[i]).minorState != MinorState.Available || !this.cabs.get(cabId[i]).interested) {
@@ -186,12 +134,58 @@ public class FulfillRide extends AbstractBehavior<FulfillRide.Command> {
 
                 CabStatus status = this.cabs.get(cabId[i]);
                 if(this.rideId == -1 && status.interested && status.minorState == MinorState.Available) {
-                    Globals.cabs.get(cabId[i]).tell(new Cab.RequestRide(cabId[i], this.sourceLoc, this.destinationLoc, getContext().getSelf()));
+                    RideAssigned assign = new RideAssigned(false, cabId[i]);
+                    Globals.cabs.get(cabId[i]).tell(new Cab.RequestRide(cabId[i], this.sourceLoc, this.destinationLoc, assign));
+                    Thread.sleep(2000);
+                    if(assign.alloted) {
+                        int fare = Math.abs(this.sourceLoc - this.destinationLoc) * 10 +
+                                Math.abs(this.cabs.get(cabId[i]).location - this.sourceLoc) * 10;
+                        ActorRef<Wallet.ResponseBalance> balRef = getContext().messageAdapter(Wallet.ResponseBalance.class,
+                                WrappedResponseBalance::new);
+                        Wallet.DeductBalance deduct = new Wallet.DeductBalance(fare, balRef);
+                        Globals.wallets.get(this.custId).tell(deduct);
+                        Thread.sleep(2000);
+
+                        // If deducted
+                        if(deduct.toDeduct == -1) {
+                            Cab.RideStarted start = new Cab.RideStarted(
+                                    Globals.rideId + 1,
+                                    cabId[i],
+                                    this.sourceLoc,
+                                    this.destinationLoc,
+                                    this.rideId,
+                                    getContext().getSelf()
+                            );
+                            Globals.cabs.get(cabId[i]).tell(start);
+                            Thread.sleep(2000);
+                            if(start.fulRideId != -1) {
+                                this.rideId = start.fulRideId;
+                                this.cabAssigned = cabId[i];
+                                this.rideFare = fare;
+                            }
+                            else {
+                                Globals.wallets.get(this.custId).tell(new Wallet.AddBalance(fare));
+                                Thread.sleep(2000);
+                            }
+                        }
+                        if(this.rideId == -1) {
+                            Globals.cabs.get(cabId[i]).tell(new Cab.RideCancelled(cabId[i]));
+                            Thread.sleep(2000);
+                        }
+
+                    }
+                }
+                else {
+                    if(status.minorState == MinorState.Available) {
+                        status.interested = true;
+                    }
                 }
             }
         }
-
+        Thread.sleep(2000);
         if(this.rideId == -1) {
+
+            this.ride.tell(new RideService.RideResponse(this.rideId, this.cabAssigned, this.rideFare, getContext().getSelf()));
             return Behaviors.stopped();
         }
         else {

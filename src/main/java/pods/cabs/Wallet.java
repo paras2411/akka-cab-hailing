@@ -3,36 +3,36 @@ package pods.cabs;
 import akka.actor.typed.*;
 import akka.actor.typed.javadsl.*;
 
-public class Wallet extends AbstractBehavior<Wallet.WalletCommands> {
+public class Wallet extends AbstractBehavior<Wallet.Command> {
 
     int walletAmount;
 
-    public Wallet(ActorContext<WalletCommands> context) {
+    public Wallet(ActorContext<Command> context) {
         super(context);
     }
 
-    public static Behavior<WalletCommands> create() {
+    public static Behavior<Command> create() {
         return Behaviors.setup(Wallet::new);
     }
 
-    interface WalletCommands {}
+    interface Command {}
 
-    public static final class InitWallet implements WalletCommands {
+    public static final class InitWallet implements Command {
         public final int amount;
         public InitWallet(int amount) {
             this.amount = amount;
         }
     }
 
-    public static final class GetBalance implements WalletCommands {
+    public static final class GetBalance implements Command {
         public final ActorRef<Wallet.ResponseBalance> replyTo;
         public GetBalance(ActorRef<Wallet.ResponseBalance> replyTo) {
             this.replyTo = replyTo;
         }
     }
 
-    public static final class DeductBalance implements WalletCommands {
-        public final int toDeduct;
+    public static final class DeductBalance implements Command {
+        public int toDeduct;
         public final ActorRef<Wallet.ResponseBalance> replyTo;
         public DeductBalance(int toDeduct, ActorRef<Wallet.ResponseBalance> replyTo) {
             this.toDeduct = toDeduct;
@@ -40,14 +40,14 @@ public class Wallet extends AbstractBehavior<Wallet.WalletCommands> {
         }
     }
 
-    public static final class AddBalance implements WalletCommands {
+    public static final class AddBalance implements Command {
         public final int toAdd;
         public AddBalance(int toAdd) {
             this.toAdd = toAdd;
         }
     }
 
-    public static final class Reset implements WalletCommands {
+    public static final class Reset implements Command {
         public final ActorRef<Wallet.ResponseBalance> replyTo;
         public Reset(ActorRef<Wallet.ResponseBalance> replyTo) {
             this.replyTo = replyTo;
@@ -57,17 +57,13 @@ public class Wallet extends AbstractBehavior<Wallet.WalletCommands> {
 
     public static final class ResponseBalance {
         public final int walletBalance;
-        public final int deducted;
-        public final String cabId;
-        public ResponseBalance(int walletBalance, int deducted, String cabId) {
+        public ResponseBalance(int walletBalance) {
             this.walletBalance = walletBalance;
-            this.deducted = deducted;
-            this.cabId = cabId;
         }
     }
 
     @Override
-    public Receive<WalletCommands> createReceive() {
+    public Receive<Command> createReceive() {
         return newReceiveBuilder()
                 .onMessage(DeductBalance.class, this::onDeductBalance)
                 .onMessage(AddBalance.class, this::onAddBalance)
@@ -77,50 +73,61 @@ public class Wallet extends AbstractBehavior<Wallet.WalletCommands> {
                 .build();
     }
 
-    public Behavior<WalletCommands> onInitWallet(InitWallet command) {
+    public Behavior<Command> onInitWallet(InitWallet command) {
 
         if(command.amount >= 0) this.walletAmount = command.amount;
 
         return this;
     }
 
-    public Behavior<WalletCommands> onReset(Reset command) {
+    public Behavior<Command> onReset(Reset command) {
 
         for(String custID: Globals.wallets.keySet()) {
-            ActorRef<Wallet.WalletCommands> wallet = Globals.wallets.get(custID);
+            ActorRef<Command> wallet = Globals.wallets.get(custID);
             wallet.tell(new InitWallet(Globals.initialBalance));
+        }
+        command.replyTo.tell(new ResponseBalance(Globals.initialBalance));
+
+        return this;
+    }
+
+    private Behavior<Command> onGetBalance(GetBalance command) {
+
+        int amount = this.walletAmount;
+        ResponseBalance resp = new ResponseBalance(amount);
+        System.out.println(resp.walletBalance);
+        command.replyTo.tell(resp);
+
+        return this;
+    }
+
+    private Behavior<Command> onAddBalance(AddBalance command) {
+
+        if(command.toAdd >= 0) {
+            this.walletAmount += command.toAdd;
         }
 
         return this;
     }
 
-    private Behavior<WalletCommands> onGetBalance(GetBalance command) {
-
-        command.replyTo.tell(new ResponseBalance(this.walletAmount, 0, ""));
-
-        return this;
-    }
-
-    private Behavior<WalletCommands> onAddBalance(AddBalance command) {
-
-        if(command.toAdd >= 0)
-            this.walletAmount += command.toAdd;
-
-        return this;
-    }
-
-    private Behavior<WalletCommands> onDeductBalance(DeductBalance command) {
+    /**
+     * This function is called when we want to deduct the amount
+     * @param command given to wallet actor
+     * @return Actor behavior
+     */
+    private Behavior<Command> onDeductBalance(DeductBalance command)  {
 
         int responseAmount = -1;
 
         if(command.toDeduct >= 0 && command.toDeduct <= this.walletAmount) {
             this.walletAmount -= command.toDeduct;
             responseAmount = this.walletAmount;
-
-            command.replyTo.tell(new ResponseBalance(responseAmount, command.toDeduct, ""));
+            command.toDeduct = -1;
+            command.replyTo.tell(new ResponseBalance(responseAmount));
         }
-
-        command.replyTo.tell(new ResponseBalance(responseAmount, 0, ""));
+        else {
+            command.replyTo.tell(new ResponseBalance(responseAmount));
+        }
 
         return this;
     }
