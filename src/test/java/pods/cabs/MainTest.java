@@ -158,7 +158,28 @@ public class MainTest extends TestCase {
 //
 //        assertNotSame(resp.rideId , -1);
 //        cab101.tell(new Cab.RideEnded(resp.rideId));
-        //System.out.println("9");
+//        //System.out.println("8");
+//    }
+
+    }
+
+
+    @Test
+    public void testSignIn() {
+        ActorRef<Cab.CabCommands> cab101 = Globals.cabs.get("102");
+        cab101.tell(new Cab.SignIn(20));
+        ActorRef<RideService.RideCommands> rideService = Globals.rideService.get(0);
+        TestProbe<Cab.GetCabStatus> probe1 = testKit.createTestProbe();
+        cab101.tell(new Cab.replyCabStatus(probe1.ref()));
+
+        Cab.GetCabStatus cabStatus = probe1.receiveMessage();
+        assertEquals(cabStatus.status.majorState, MajorState.SignedIn);
+
+        TestProbe<RideService.GetCabStatus> probe2 = testKit.createTestProbe();
+
+        rideService.tell(new RideService.replyCabStatus(probe2.ref(), "102"));
+        RideService.GetCabStatus status = probe2.receiveMessage();
+        assertEquals(status.status.majorState, MajorState.SignedIn);
     }
 
 }

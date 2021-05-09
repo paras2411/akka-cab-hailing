@@ -69,7 +69,6 @@ public class FulfillRide extends AbstractBehavior<FulfillRide.Command> {
         }
     }
 
-
     private FulfillRide(
             ActorContext<Command> context,
             HashMap<String, CabStatus> cabs,
@@ -157,7 +156,6 @@ public class FulfillRide extends AbstractBehavior<FulfillRide.Command> {
 
         if(this.rideId != -1) return this;
 
-        Globals.cabs.get(command.cabId).tell(new Cab.RequestRide(command.cabId, this.sourceLoc, this.destinationLoc, getContext().getSelf()));
 
         return this;
     }
@@ -185,7 +183,11 @@ public class FulfillRide extends AbstractBehavior<FulfillRide.Command> {
 
         for(int i = 0; i < 3; i++) {
             if(!cabId[i].equals("")) {
-                getContext().getSelf().tell(new RequestCab(cabId[i]));
+
+                CabStatus status = this.cabs.get(cabId[i]);
+                if(this.rideId == -1 && status.interested && status.minorState == MinorState.Available) {
+                    Globals.cabs.get(cabId[i]).tell(new Cab.RequestRide(cabId[i], this.sourceLoc, this.destinationLoc, getContext().getSelf()));
+                }
             }
         }
 

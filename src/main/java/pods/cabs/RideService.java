@@ -18,8 +18,29 @@ public class RideService extends AbstractBehavior<RideService.RideCommands>{
                 .onMessage(RequestRide.class, this::onRequestRide)
                 .onMessage(UpdateCabStatus.class, this::onUpdateCabStatus)
                 .onMessage(StoreCabStatus.class, this::onStoreCabStatus)
+                .onMessage(replyCabStatus.class, this::onreplyCabStatus)
                 .build();
 
+    }
+
+    public Behavior<RideService.RideCommands> onreplyCabStatus(replyCabStatus command) {
+
+        command.replyTo.tell(new GetCabStatus(cabs.get(command.cabId)));
+        return this;
+    }
+    public static final class GetCabStatus {
+        public final CabStatus status;
+        public GetCabStatus(CabStatus status) {
+            this.status = status;
+        }
+    }
+    public static final class replyCabStatus implements RideService.RideCommands {
+        public final ActorRef<RideService.GetCabStatus> replyTo;
+        public final String cabId;
+        public replyCabStatus(ActorRef<RideService.GetCabStatus> replyTo, String cabId) {
+            this.replyTo = replyTo;
+            this.cabId = cabId;
+        }
     }
 
 

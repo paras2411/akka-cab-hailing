@@ -36,13 +36,11 @@ public class Cab extends AbstractBehavior<Cab.CabCommands> {
     }
 
     public static final class RequestRide implements CabCommands {
-        public final String cabId;
         public final int sourceLoc;
         public final int destinationLoc;
         public final ActorRef<FulfillRide.Command> replyTo;
 
         public RequestRide(String cabId, int sourceLoc, int destinationLoc, ActorRef<FulfillRide.Command> replyTo) {
-            this.cabId = cabId;
             this.sourceLoc = sourceLoc;
             this.destinationLoc = destinationLoc;
             this.replyTo = replyTo;
@@ -51,14 +49,12 @@ public class Cab extends AbstractBehavior<Cab.CabCommands> {
 
     public static final class RideStarted implements CabCommands {
         public final int rideId;
-        public final String cabId;
         public final int sourceLoc;
         public final int destinationLoc;
         public final ActorRef<FulfillRide.Command> replyTo;
 
         public RideStarted(int rideId, String cabId, int sourceLoc, int destinationLoc, ActorRef<FulfillRide.Command> replyTo) {
             this.rideId = rideId;
-            this.cabId = cabId;
             this.sourceLoc = sourceLoc;
             this.destinationLoc = destinationLoc;
             this.replyTo = replyTo;
@@ -66,10 +62,7 @@ public class Cab extends AbstractBehavior<Cab.CabCommands> {
     }
 
     public static final class RideCancelled implements CabCommands {
-        public final String cabId;
-
         public RideCancelled(String cabId) {
-            this.cabId = cabId;
         }
     }
 
@@ -81,20 +74,17 @@ public class Cab extends AbstractBehavior<Cab.CabCommands> {
     }
 
     public static final class SignIn implements CabCommands {
-        public final String cabId;
         public final int initialPos;
 
-        public SignIn(String cabId, int initialPos) {
-            this.cabId = cabId;
+        public SignIn(int initialPos) {
             this.initialPos = initialPos;
         }
     }
 
     public static final class SignOut implements CabCommands {
 
-        public final String cabId;
-        public SignOut(String cabId) {
-            this.cabId = cabId;
+        public SignOut() {
+
         }
     }
 
@@ -112,13 +102,25 @@ public class Cab extends AbstractBehavior<Cab.CabCommands> {
         }
     }
 
+    public static final class GetCabStatus {
+        public final CabStatus status;
+        public GetCabStatus(CabStatus status) {
+            this.status = status;
+        }
+    }
+    public static final class replyCabStatus implements CabCommands {
+        public final ActorRef<GetCabStatus> replyTo;
+        public replyCabStatus(ActorRef<GetCabStatus> replyTo) {
+            this.replyTo = replyTo;
+        }
+    }
+
+
+
     public static final class NumRidesResponse {
         public int numRides;
         public NumRidesResponse(int numRides) {
             this.numRides = numRides;
-        }
-        public void increment() {
-            this.numRides += 1;
         }
     }
 
@@ -133,14 +135,21 @@ public class Cab extends AbstractBehavior<Cab.CabCommands> {
                 .onMessage(RideStarted.class, this::onRideStarted)
                 .onMessage(SignOut.class, this::onSignOut)
                 .onMessage(RideCancelled.class, this::onRideCancelled)
+                .onMessage(replyCabStatus.class, this::onGetCabStatus)
                 .build();
+    }
+
+    public Behavior<CabCommands> onGetCabStatus(replyCabStatus command) {
+
+        command.replyTo.tell(new GetCabStatus(this.cabStatus));
+        return this;
     }
 
     public Behavior<CabCommands> onRideCancelled(RideCancelled command) {
 
         if(cabStatus.minorState == MinorState.Committed) {
             cabStatus.minorState = MinorState.Available;
-            Globals.rideService.get(0).tell(new RideService.UpdateCabStatus(command.cabId, cabStatus));
+            Globals.rideService.get(0).tell(new RideService.UpdateCabStatus(getContext().getSelf().path().name(), cabStatus));
         }
         return this;
     }
@@ -152,7 +161,7 @@ public class Cab extends AbstractBehavior<Cab.CabCommands> {
             cabStatus.location = command.sourceLoc;
             cabStatus.minorState = MinorState.GivingRide;
             this.destinationLoc = command.destinationLoc;
-            Globals.rideService.get(0).tell(new RideService.UpdateCabStatus(command.cabId, cabStatus));
+            Globals.rideService.get(0).tell(new RideService.UpdateCabStatus(getContext().getSelf().path().name(), cabStatus));
             command.replyTo.tell(new FulfillRide.CabStartedRide(command.rideId));
             Globals.rideId++;
             this.numRides++;
@@ -167,21 +176,23 @@ public class Cab extends AbstractBehavior<Cab.CabCommands> {
     public Behavior<CabCommands> onRequestRide(RequestRide command) {
 
         if(command.sourceLoc < 0 || command.destinationLoc < 0) {
-            command.replyTo.tell(new FulfillRide.RideAssigned(false, command.cabId));
+            command.replyTo.tell(new FulfillRide.RideAssigned(false, getContext().getSelf().path().name()));
         }
-
-        if(cabStatus.minorState == MinorState.Available) {
+        else if(cabStatus.minorState == MinorState.Available) {
+            boolean rideAssigned = false;
             if(cabStatus.interested) {
-                command.replyTo.tell(new FulfillRide.RideAssigned(true, command.cabId));
+                rideAssigned = true;
                 cabStatus.interested = false;
                 cabStatus.minorState = MinorState.Committed;
             }
             else {
-                command.replyTo.tell(new FulfillRide.RideAssigned(false, command.cabId));
                 cabStatus.interested = true;
             }
-            Globals.rideService.get(0).tell(new RideService.UpdateCabStatus(command.cabId, cabStatus));
+            Globals.rideService.get(0).tell(new RideService.UpdateCabStatus(getContext().getSelf().path().name(), cabStatus));
+            command.replyTo.tell(new FulfillRide.RideAssigned(rideAssigned, getContext().getSelf().path().name()));
+
         }
+
 
         return this;
     }
@@ -193,7 +204,7 @@ public class Cab extends AbstractBehavior<Cab.CabCommands> {
         cabStatus.interested = true;
         cabStatus.location = command.initialPos;
 
-        Globals.rideService.get(0).tell(new RideService.UpdateCabStatus(command.cabId, cabStatus));
+        Globals.rideService.get(0).tell(new RideService.UpdateCabStatus(getContext().getSelf().path().name(), cabStatus));
 
         return this;
     }
@@ -203,7 +214,7 @@ public class Cab extends AbstractBehavior<Cab.CabCommands> {
         cabStatus.majorState = MajorState.SignedOut;
         cabStatus.minorState = MinorState.NotAvailable;
 
-        Globals.rideService.get(0).tell(new RideService.UpdateCabStatus(command.cabId, cabStatus));
+        Globals.rideService.get(0).tell(new RideService.UpdateCabStatus(getContext().getSelf().path().name(), cabStatus));
 
         return this;
     }
@@ -231,6 +242,7 @@ public class Cab extends AbstractBehavior<Cab.CabCommands> {
             ActorRef<Cab.CabCommands> cab = Globals.cabs.get(cabId);
             cab.tell(new InitializeCab());
         }
+        command.replyTo.tell(new NumRidesResponse(this.numRides));
         return this;
     }
 

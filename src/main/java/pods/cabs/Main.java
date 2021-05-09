@@ -26,7 +26,7 @@ public class Main  {
                 context -> {
                     Globals.cabs = new HashMap<>();
                     Globals.wallets = new HashMap<>();
-                    Globals.rideId = 0;
+                    Globals.rideId = 1;
                     File file = new File("src/main/java/pods/cabs/IDs.txt");
                     try {
                         Scanner scan = new Scanner(file);
@@ -36,7 +36,7 @@ public class Main  {
                             String cur = scan.nextLine();
                             if(cur.equals("****")) counter++;
                             else if(counter == 1) {
-                                ActorRef<Cab.CabCommands> cab = context.spawn(Cab.create(), "Cab"+cur);
+                                ActorRef<Cab.CabCommands> cab = context.spawn(Cab.create(), cur);
                                 Globals.cabs.put(cur, cab);
                             }
                             else if(counter == 2) {
@@ -47,7 +47,7 @@ public class Main  {
                             }
                         }
                         for(String customer: customers) {
-                            ActorRef<Wallet.WalletCommands> wallet = context.spawn(Wallet.create(), "Wallet" + customer);
+                            ActorRef<Wallet.WalletCommands> wallet = context.spawn(Wallet.create(), customer);
                             Globals.wallets.put(customer, wallet);
                             wallet.tell(new Wallet.InitWallet(Globals.initialBalance));
                         }
