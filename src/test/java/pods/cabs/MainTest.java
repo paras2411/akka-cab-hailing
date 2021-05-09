@@ -350,7 +350,6 @@ public class MainTest extends TestCase {
         Globals.wallets.get("202").tell(new Wallet.GetBalance(probe.getRef()));
 
         assertEquals(probe.receiveMessage().walletBalance, 1000);
-        System.out.println("Paras");
     }
 
 
@@ -390,7 +389,7 @@ public class MainTest extends TestCase {
         RideService.RideResponse resp1 = probe4.receiveMessage(Duration.ofMinutes(1));
         assertNotSame(resp1.rideId , -1);
 
-        rideService1.tell(new RideService.RequestRide("202", 10, 110, probe4.getRef()));
+        rideService1.tell(new RideService.RequestRide("202", 40, 110, probe4.getRef()));
         RideService.RideResponse resp2 = probe4.receiveMessage(Duration.ofMinutes(1));
         assertNotSame(resp2.rideId , -1);
 
@@ -398,12 +397,11 @@ public class MainTest extends TestCase {
 
         rideService.tell(new RideService.RequestRide("201", 100, 10, probe4.getRef()));
         resp1 = probe4.receiveMessage(Duration.ofMinutes(1));
-        assertEquals(resp1.rideId , -1);
+        assertSame(resp1.rideId , -1);
 
-        rideService.tell(new RideService.RequestRide("201", 100, 10, probe4.getRef()));
+        rideService.tell(new RideService.RequestRide("201", 100, 11, probe4.getRef()));
         resp1 = probe4.receiveMessage(Duration.ofMinutes(1));
         assertNotSame(resp1.rideId , -1);
-        System.out.println("lohani");
 
     }
 

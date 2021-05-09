@@ -25,11 +25,13 @@ public class Main  {
         return Behaviors.setup(
                 context -> {
 
+                    // Instantiating the Global data
                     Globals.cabs = new HashMap<>();
                     Globals.wallets = new HashMap<>();
                     Globals.rideId = 0;
                     Globals.fulCab = new HashMap<>();
 
+                    // reading the initial data and creating actors
                     File file = new File("src/main/java/pods/cabs/IDs.txt");
                     try {
                         Scanner scan = new Scanner(file);

@@ -95,6 +95,11 @@ public class FulfillRide extends AbstractBehavior<FulfillRide.Command> {
                 .build();
     }
 
+    /**
+     * This behavior is called when ride is ended from the cab actor
+     * @param command to fulfill ride actor to end the ride and update the cab status to ride actors
+     * @return behavior of the fulfill ride actor
+     */
     public Behavior<Command> onRideEnded(RideEnded command) {
 
         Globals.rideService.get(0).tell(new RideService.UpdateCabStatus(this.cabAssigned, command.cabStatus));
@@ -107,6 +112,12 @@ public class FulfillRide extends AbstractBehavior<FulfillRide.Command> {
     }
 
 
+    /**
+     * It implements the logic of finding nearest 3 cabs and querying each cab for the ride
+     * @param command to Fulfill ride actor for requesting ride
+     * @return Fulfill ride behavior
+     * @throws InterruptedException the exception is thrown if thread sleep fails
+     */
     public Behavior<Command> onRequestRide(RequestRide command) throws InterruptedException {
 
         // finding the nearest 3 cabs
@@ -121,6 +132,7 @@ public class FulfillRide extends AbstractBehavior<FulfillRide.Command> {
                     break;
                 }
                 else if(far == distance[i]) {
+                    // If actor distance is same to previous cabs then select the cab which is available
                     if(this.cabs.get(cabId[i]).minorState != MinorState.Available || !this.cabs.get(cabId[i]).interested) {
                         swap(distance, cabId, cab, far, i);
                         break;
@@ -137,6 +149,7 @@ public class FulfillRide extends AbstractBehavior<FulfillRide.Command> {
                     RideAssigned assign = new RideAssigned(false, cabId[i]);
                     Globals.cabs.get(cabId[i]).tell(new Cab.RequestRide(cabId[i], this.sourceLoc, this.destinationLoc, assign));
                     Thread.sleep(2000);
+                    // If some cab is assigned then continue
                     if(assign.alloted) {
                         int fare = Math.abs(this.sourceLoc - this.destinationLoc) * 10 +
                                 Math.abs(this.cabs.get(cabId[i]).location - this.sourceLoc) * 10;
@@ -146,7 +159,7 @@ public class FulfillRide extends AbstractBehavior<FulfillRide.Command> {
                         Globals.wallets.get(this.custId).tell(deduct);
                         Thread.sleep(2000);
 
-                        // If deducted
+                        // If money deducted
                         if(deduct.toDeduct == -1) {
                             Cab.RideStarted start = new Cab.RideStarted(
                                     Globals.rideId + 1,
@@ -164,6 +177,7 @@ public class FulfillRide extends AbstractBehavior<FulfillRide.Command> {
                                 this.rideFare = fare;
                             }
                             else {
+                                // Add the money back if ride not started
                                 Globals.wallets.get(this.custId).tell(new Wallet.AddBalance(fare));
                                 Thread.sleep(2000);
                             }
