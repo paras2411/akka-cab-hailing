@@ -11,12 +11,18 @@ public class Cab extends AbstractBehavior<Cab.Command> {
     public int numRides;
     public int rideID;
 
+    /**
+     * function which initializes the initial value of the Cab's and no. of rides
+     */
     public void initialize() {
         this.cabStatus = new CabStatus();
         this.numRides = 0;
         this.destinationLoc = this.cabStatus.location;
     }
 
+    /**
+     * constructor and invoke initialize
+     */
     public Cab(ActorContext<Command> context) {
         super(context);
         this.initialize();
@@ -28,12 +34,21 @@ public class Cab extends AbstractBehavior<Cab.Command> {
 
     interface Command {}
 
+    /**
+     * InitializeCab class which implements Command interface
+     * and constructor invokes the initialize function
+     */
     public class InitializeCab implements Command {
         public InitializeCab() {
             initialize();
         }
     }
 
+    /**
+     * requestRide class which implements Command interface
+     * and constructor set the source location and destination
+     * and also take FulfillRide type actor as a parameter
+     */
     public static final class RequestRide implements Command {
         public final int sourceLoc;
         public final int destinationLoc;
@@ -46,6 +61,11 @@ public class Cab extends AbstractBehavior<Cab.Command> {
         }
     }
 
+    /**
+     * rideStarted class which implements Command interface
+     * and constructor assigns the rideId, cabId, source and destination location
+     * and also take a FulfillRide actor to reply back
+     */
     public static final class RideStarted implements Command {
         public final int rideId;
         public final int sourceLoc;
@@ -62,11 +82,19 @@ public class Cab extends AbstractBehavior<Cab.Command> {
         }
     }
 
+    /**
+     * RideCancelled class which implements Command interface
+     * and constructor takes the cab id as the parameter
+     */
     public static final class RideCancelled implements Command {
         public RideCancelled(String cabId) {
         }
     }
 
+    /**
+     * RideEnded class which implements Command interface
+     *  and constructor take rideId as the input to end that ride
+     */
     public static final class RideEnded implements Command {
         public final int rideId;
         public RideEnded(int rideId) {
@@ -74,6 +102,11 @@ public class Cab extends AbstractBehavior<Cab.Command> {
         }
     }
 
+    /**
+     * SignIn class which implements Command interface
+     * and constructor takes initial position to make its
+     * initial position from where he will start taking the rides
+     */
     public static final class SignIn implements Command {
         public final int initialPos;
 

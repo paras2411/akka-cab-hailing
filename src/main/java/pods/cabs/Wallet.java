@@ -7,6 +7,9 @@ public class Wallet extends AbstractBehavior<Wallet.Command> {
 
     int walletAmount;
 
+    /**
+     * Constructor
+     */
     public Wallet(ActorContext<Command> context) {
         super(context);
     }
@@ -17,6 +20,11 @@ public class Wallet extends AbstractBehavior<Wallet.Command> {
 
     interface Command {}
 
+    /**
+     * this is the initWallet class which implements the Command interface
+     * and constructor takes an integer as amount and initializes the
+     * costumer's wallet with that amount.
+     */
     public static final class InitWallet implements Command {
         public final int amount;
         public InitWallet(int amount) {
@@ -24,6 +32,10 @@ public class Wallet extends AbstractBehavior<Wallet.Command> {
         }
     }
 
+    /**
+     * this is the getBalance class which implements the Command interface
+     * and constructor takes as Wallet actor to reply back
+     */
     public static final class GetBalance implements Command {
         public final ActorRef<Wallet.ResponseBalance> replyTo;
         public GetBalance(ActorRef<Wallet.ResponseBalance> replyTo) {
@@ -31,6 +43,11 @@ public class Wallet extends AbstractBehavior<Wallet.Command> {
         }
     }
 
+    /**
+     * this is the deductBalance class which implements the Command interface
+     * and constructor takes an integer which is tho be deducted from costumer's
+     * wallet as well as take an wallet actor to respond back.
+     */
     public static final class DeductBalance implements Command {
         public int toDeduct;
         public final ActorRef<Wallet.ResponseBalance> replyTo;
@@ -40,6 +57,10 @@ public class Wallet extends AbstractBehavior<Wallet.Command> {
         }
     }
 
+    /**
+     * this is the addBalance class which implements the Command interface
+     * and constructor takes an integer which is to be added
+     */
     public static final class AddBalance implements Command {
         public final int toAdd;
         public AddBalance(int toAdd) {
@@ -47,6 +68,10 @@ public class Wallet extends AbstractBehavior<Wallet.Command> {
         }
     }
 
+    /**
+     * Reset class and implements the Command interface
+     * Constructor takes a Wallet Actor and save it in the replyTo actor
+     */
     public static final class Reset implements Command {
         public final ActorRef<Wallet.ResponseBalance> replyTo;
         public Reset(ActorRef<Wallet.ResponseBalance> replyTo) {
@@ -54,7 +79,10 @@ public class Wallet extends AbstractBehavior<Wallet.Command> {
         }
     }
 
-
+    /**
+     * This is class for responding the wallet balance
+     * constructor put the balance in the costumer's wallet
+     */
     public static final class ResponseBalance {
         public final int walletBalance;
         public ResponseBalance(int walletBalance) {
@@ -73,6 +101,12 @@ public class Wallet extends AbstractBehavior<Wallet.Command> {
                 .build();
     }
 
+    /**
+     * This function is called when we want to initialize
+     * the amount in costumer's wallet.
+     * @param command given to wallet actor
+     * @return Actor behavior
+     */
     public Behavior<Command> onInitWallet(InitWallet command) {
 
         if(command.amount >= 0) this.walletAmount = command.amount;
@@ -80,6 +114,11 @@ public class Wallet extends AbstractBehavior<Wallet.Command> {
         return this;
     }
 
+    /**
+     * This function is called when we want to reset the wallet's of the costumer
+     * @param command given to wallet actor
+     * @return actor behavior
+     */
     public Behavior<Command> onReset(Reset command) {
 
         for(String custID: Globals.wallets.keySet()) {
@@ -91,6 +130,11 @@ public class Wallet extends AbstractBehavior<Wallet.Command> {
         return this;
     }
 
+    /**
+     * This function is called when we want to know the amount
+     * @param command given to wallet actor
+     * @return Actor behavior
+     */
     private Behavior<Command> onGetBalance(GetBalance command) {
 
         int amount = this.walletAmount;
@@ -101,6 +145,11 @@ public class Wallet extends AbstractBehavior<Wallet.Command> {
         return this;
     }
 
+    /**
+     * This function is called when we want to add the amount
+     * @param command given to wallet actor
+     * @return Actor behavior
+     */
     private Behavior<Command> onAddBalance(AddBalance command) {
 
         if(command.toAdd >= 0) {
